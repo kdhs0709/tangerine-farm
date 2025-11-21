@@ -17,25 +17,41 @@ st.set_page_config(
 
 st.markdown("""
     <style>
-    /* 전체 여백 최소화 */
-    .block-container {
-        padding-top: 1rem;
-        padding-bottom: 2rem;
-        padding-left: 0.5rem;
-        padding-right: 0.5rem;
+    /* 1. 버튼, 입력창은 터치하기 쉽게 큼직하게 유지 */
+    .stButton>button, .stTextInput input, .stNumberInput input {
+        min-height: 45px !important;
+        font-size: 16px !important;
+        font-weight: bold !important;
+        border-radius: 10px !important;
     }
-    /* 버튼 스타일 */
     .stButton>button {
-        width: 100%;
-        border-radius: 10px;
-        height: 3.5em;
-        font-weight: bold;
-        border: none;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        background-color: #FF6F00 !important;
+        color: white !important;
+        border: none !important;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
     }
-    /* 표 헤더 글씨 크기 조정 */
-    th {
-        font-size: 14px !important;
+
+    /* 2. 표(Grid)는 정보를 많이 보여주기 위해 슬림하게 조정 */
+    div[data-testid="stDataEditor"] table, div[data-testid="stDataFrame"] table {
+        font-size: 13px !important; /* 표 글씨는 약간 작게 */
+    }
+    
+    /* 3. 표의 칸 여백을 줄여서(Autosize 효과) 모바일 폭에 맞춤 */
+    div[data-testid="stDataEditor"] th, div[data-testid="stDataEditor"] td {
+        padding: 8px 4px !important; /* 좌우 여백 최소화 */
+    }
+    
+    /* 송장 그룹 헤더 */
+    .sender-header {
+        background-color: #FFF3E0;
+        padding: 12px;
+        border-radius: 8px;
+        border-left: 5px solid #FF6F00;
+        margin-top: 20px;
+        margin-bottom: 8px;
+        font-weight: bold;
+        font-size: 15px;
+        line-height: 1.4;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -166,7 +182,7 @@ tab1, tab2, tab3, tab4 = st.tabs(["📋 명단", "🚚 주문", "📊 통계", "
 
 # --- Tab 1: 고객 관리 ---
 with tab1:
-    with st.expander("📂 엑셀 불러오기"):
+    with st.expander("📂 엑셀 불러오기 (Smart)", expanded=True):
         up_file = st.file_uploader("엑셀 업로드", type=["xlsx", "xls", "xlsm"])
         if up_file:
             if st.button("합치기", type="primary"):
@@ -217,16 +233,16 @@ with tab1:
 
     st.session_state.df.fillna("", inplace=True)
 
-    # [핵심] 모바일 초밀착 뷰 설정
+    # [핵심] 모바일 최적화 뷰: 이모지 헤더 + small 너비
     edited_df = st.data_editor(
         st.session_state.df,
         column_config={
-            "ordered": st.column_config.CheckboxColumn("✅", width="small"),  # 이모지로 변경
-            "name": st.column_config.TextColumn("이름", width="small"),
-            "phone": st.column_config.TextColumn("📞", width="small"),      # 이모지로 변경
-            "qty": st.column_config.NumberColumn("📦", width="small"),      # 이모지로 변경
-            "address": st.column_config.TextColumn("주소", width="medium"),
-            "memo": st.column_config.TextColumn("📝", width="small"),       # 이모지로 변경
+            "ordered": st.column_config.CheckboxColumn("✅", width="small"),
+            "name": st.column_config.TextColumn("👤", width="small"),
+            "phone": st.column_config.TextColumn("📞", width="small"),
+            "qty": st.column_config.NumberColumn("📦", width="small"),
+            "address": st.column_config.TextColumn("🏠", width="medium"), # 주소는 조금 더 넓게
+            "memo": st.column_config.TextColumn("📝", width="small"),
             "id": None, "sender_name": None, "sender_phone": None, "sender_addr": None
         },
         hide_index=True,
@@ -259,10 +275,10 @@ with tab2:
         edited_orders = st.data_editor(
             orders,
             column_config={
-                "name": st.column_config.TextColumn("이름", width="small"),
+                "name": st.column_config.TextColumn("👤", width="small"),
                 "qty": st.column_config.NumberColumn("📦", width="small"),
                 "phone": st.column_config.TextColumn("📞", width="small"),
-                "address": st.column_config.TextColumn("주소", width="medium"),
+                "address": st.column_config.TextColumn("🏠", width="medium"),
                 "memo": st.column_config.TextColumn("📝", width="small"),
                 "id": None, "ordered": None, "sender_name": None, "sender_phone": None, "sender_addr": None
             },
@@ -341,12 +357,12 @@ with tab4:
         edited_inv = st.data_editor(
             orders_active,
             column_config={
-                "sender_name": st.column_config.TextColumn("보내는분", width="small"),
-                "sender_phone": st.column_config.TextColumn("보내는전화", width="small"),
-                "sender_addr": st.column_config.TextColumn("보내는주소", width="medium"),
-                "name": st.column_config.TextColumn("받는분", disabled=True, width="small"),
-                "phone": st.column_config.TextColumn("받는전화", disabled=True, width="small"),
-                "address": st.column_config.TextColumn("받는주소", disabled=True, width="medium"),
+                "sender_name": st.column_config.TextColumn("보냄👤", width="small"),
+                "sender_phone": st.column_config.TextColumn("보냄📞", width="small"),
+                "sender_addr": st.column_config.TextColumn("보냄🏠", width="medium"),
+                "name": st.column_config.TextColumn("받음👤", disabled=True, width="small"),
+                "phone": st.column_config.TextColumn("받음📞", disabled=True, width="small"),
+                "address": st.column_config.TextColumn("받음🏠", disabled=True, width="medium"),
                 "qty": st.column_config.NumberColumn("📦", disabled=True, width="small"),
                 "memo": st.column_config.TextColumn("📝", width="small"),
                 "id": None, "ordered": None
@@ -373,9 +389,9 @@ with tab4:
             edited_group = st.data_editor(
                 group[['name', 'phone', 'address', 'qty', 'memo']],
                 column_config={
-                    "name": st.column_config.TextColumn("받는분", width="small", disabled=True),
-                    "phone": st.column_config.TextColumn("전화", width="small", disabled=True),
-                    "address": st.column_config.TextColumn("주소", width="medium", disabled=True),
+                    "name": st.column_config.TextColumn("👤", width="small", disabled=True),
+                    "phone": st.column_config.TextColumn("📞", width="small", disabled=True),
+                    "address": st.column_config.TextColumn("🏠", width="medium", disabled=True),
                     "qty": st.column_config.NumberColumn("📦", width="small", disabled=True), 
                     "memo": st.column_config.TextColumn("📝", width="small")
                 },
