@@ -6,7 +6,7 @@ import os
 from datetime import datetime
 
 # =============================================================================
-# 📱 [설정] 페이지 및 모바일 최적화
+# 📱 [설정] 페이지 및 디자인 (글씨 크기 확대)
 # =============================================================================
 st.set_page_config(
     page_title="감귤 농장 Manager",
@@ -15,26 +15,41 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
+# 글씨 크기 및 디자인 커스텀
 st.markdown("""
     <style>
+    /* 전체 글씨 크기 업그레이드 */
+    html, body, [class*="css"] {
+        font-size: 18px !important;
+    }
+    /* 버튼 스타일 */
     .stButton>button {
         width: 100%;
         border-radius: 12px;
-        height: 3.5em;
+        height: 4em;
+        font-size: 18px !important;
         font-weight: bold;
         border: none;
         box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     }
-    /* 그룹 헤더 스타일 */
+    /* 입력창 글씨 크기 */
+    .stTextInput > div > div > input {
+        font-size: 18px !important;
+    }
+    /* 표(DataFrame) 글씨 크기 */
+    div[data-testid="stDataFrame"] {
+        font-size: 16px !important;
+    }
+    /* 송장 그룹 헤더 */
     .sender-header {
         background-color: #FFF3E0;
-        padding: 10px;
+        padding: 15px;
         border-radius: 10px;
-        border-left: 5px solid #FF6F00;
-        margin-top: 20px;
+        border-left: 6px solid #FF6F00;
+        margin-top: 25px;
         margin-bottom: 10px;
         font-weight: bold;
-        font-size: 1.1em;
+        font-size: 1.2em;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -185,13 +200,35 @@ with tab1:
         if up_file:
             if st.button("데이터 분석 및 합치기", type="primary"):
                 new_df, err = smart_import_ai(up_file)
-                if err: st.error(err)
+                if err: 
+                    st.error(err)
                 else:
-                    st.session_state.df = pd.concat([st.session_state.df, new_df], ignore_index=True)
-                    st.session_state.df.fillna("", inplace=True)
-                    st.session_state.df = st.session_state.df.sort_values(by='name').reset_index(drop=True)
-                    save_all()
-                    st.success(f"{len(new_df)}명 추가 완료!")
+                    # [중복 제거 로직]
+                    # 기존 데이터의 (이름, 전화번호) 집합 생성
+                    existing_keys = set(zip(st.session_state.df['name'], st.session_state.df['phone']))
+                    
+                    filtered_rows = []
+                    duplicate_count = 0
+                    
+                    for _, row in new_df.iterrows():
+                        if (row['name'], row['phone']) not in existing_keys:
+                            filtered_rows.append(row)
+                        else:
+                            duplicate_count += 1
+                    
+                    if filtered_rows:
+                        st.session_state.df = pd.concat([st.session_state.df, pd.DataFrame(filtered_rows)], ignore_index=True)
+                        st.session_state.df.fillna("", inplace=True)
+                        st.session_state.df = st.session_state.df.sort_values(by='name').reset_index(drop=True)
+                        save_all()
+                        
+                        msg = f"✅ 총 {len(new_df)}명 중 {len(filtered_rows)}명 추가 완료!"
+                        if duplicate_count > 0:
+                            msg += f" (중복 {duplicate_count}명 제외됨)"
+                        st.success(msg)
+                    else:
+                        st.warning(f"모든 데이터({len(new_df)}명)가 이미 존재합니다.")
+                        
                     st.rerun()
 
     with st.expander("➕ 신규 고객 등록"):
@@ -205,11 +242,21 @@ with tab1:
             m = c4.text_input("메모")
             if st.form_submit_button("등록"):
                 if n:
-                    row = {"id":str(uuid.uuid4()), "ordered":(q>0), "name":n, "phone":p, "address":a, "qty":q, "memo":m, "sender_name":"", "sender_phone":"", "sender_addr":""}
-                    st.session_state.df = pd.concat([st.session_state.df, pd.DataFrame([row])], ignore_index=True)
-                    st.session_state.df = st.session_state.df.sort_values(by='name').reset_index(drop=True)
-                    save_all()
-                    st.rerun()
+                    # 신규 등록 시에도 중복 체크
+                    is_dup = not st.session_state.df[
+                        (st.session_state.df['name'] == n) & 
+                        (st.session_state.df['phone'] == p)
+                    ].empty
+                    
+                    if is_dup:
+                        st.error("이미 존재하는 고객입니다.")
+                    else:
+                        row = {"id":str(uuid.uuid4()), "ordered":(q>0), "name":n, "phone":p, "address":a, "qty":q, "memo":m, "sender_name":"", "sender_phone":"", "sender_addr":""}
+                        st.session_state.df = pd.concat([st.session_state.df, pd.DataFrame([row])], ignore_index=True)
+                        st.session_state.df = st.session_state.df.sort_values(by='name').reset_index(drop=True)
+                        save_all()
+                        st.success(f"{n}님 등록 완료!")
+                        st.rerun()
 
     st.divider()
     
@@ -224,6 +271,7 @@ with tab1:
 
     st.session_state.df.fillna("", inplace=True)
 
+    # [모든 데이터 수정 가능] - 고객 관리
     edited_df = st.data_editor(
         st.session_state.df,
         column_config={
@@ -258,11 +306,36 @@ with tab1:
 
 # --- Tab 2: 주문 현황 ---
 with tab2:
-    orders = st.session_state.df[st.session_state.df['ordered']==True]
+    orders = st.session_state.df[st.session_state.df['ordered']==True].copy()
     st.metric("📦 현재 주문 합계", f"{len(orders)} 건", f"{orders['qty'].sum()} 박스")
     
     if not orders.empty:
-        st.dataframe(orders[["name", "phone", "address", "qty", "memo"]], use_container_width=True, hide_index=True)
+        # [모든 데이터 수정 가능] - 주문 현황
+        # data_editor로 변경하여 이름, 전화번호, 주소 모두 수정 가능하게 함
+        edited_orders = st.data_editor(
+            orders,
+            column_config={
+                "name": st.column_config.TextColumn("이름"),
+                "phone": st.column_config.TextColumn("전화번호"),
+                "address": st.column_config.TextColumn("주소"),
+                "qty": st.column_config.NumberColumn("수량", min_value=0),
+                "memo": st.column_config.TextColumn("메모"),
+                "id": None, "ordered": None, "sender_name": None, "sender_phone": None, "sender_addr": None
+            },
+            use_container_width=True,
+            hide_index=True,
+            key="order_editor"
+        )
+
+        if not edited_orders.equals(orders):
+            st.session_state.df.update(edited_orders)
+            # 수량이 0이 되면 주문 취소 처리
+            zero_qty_indices = edited_orders[edited_orders['qty'] == 0].index
+            if not zero_qty_indices.empty:
+                st.session_state.df.loc[zero_qty_indices, 'ordered'] = False
+            save_all()
+            st.rerun()
+
         st.divider()
         if st.button("🏁 주문 마감 및 기록 저장", type="primary"):
             record = orders[["name", "phone", "qty"]].copy()
@@ -314,31 +387,30 @@ with tab4:
 
     st.divider()
     st.subheader("2. 송장 출력 (개별 수정)")
-    st.caption("※ 보내는 사람, 메모를 수정할 수 있습니다. 빈칸은 기본 정보로 채워집니다.")
+    st.caption("※ 모든 항목을 클릭하여 수정할 수 있습니다.")
     
     orders_active = st.session_state.df[st.session_state.df['ordered']==True].copy()
     
     if not orders_active.empty:
-        # 기본값 채우기
         def_s = st.session_state.sender
         for col, def_val in [('sender_name', def_s['name']), ('sender_phone', def_s['phone']), ('sender_addr', def_s['addr'])]:
             orders_active[col] = orders_active[col].replace("", pd.NA).fillna(def_val)
 
-        # 정렬
         orders_active = orders_active.sort_values(by=['sender_name', 'name'])
 
-        # 1. 상단 에디터 (수정 가능)
+        # [모든 데이터 수정 가능] - 송장 목록
+        # disabled=True 옵션을 모두 제거하여 전체 수정 가능하게 함
         edited_inv = st.data_editor(
             orders_active,
             column_config={
                 "sender_name": st.column_config.TextColumn("보내는분(수정)"),
                 "sender_phone": st.column_config.TextColumn("보내는연락처(수정)"),
                 "sender_addr": st.column_config.TextColumn("보내는주소(수정)"),
-                "name": st.column_config.TextColumn("받는분", disabled=True),
-                "phone": st.column_config.TextColumn("받는연락처", disabled=True),
-                "address": st.column_config.TextColumn("받는주소", disabled=True),
-                "qty": st.column_config.NumberColumn("수량", disabled=True),
-                "memo": st.column_config.TextColumn("메모(수정)"), # 수정 가능
+                "name": st.column_config.TextColumn("받는분(수정)"),
+                "phone": st.column_config.TextColumn("받는연락처(수정)"),
+                "address": st.column_config.TextColumn("받는주소(수정)"),
+                "qty": st.column_config.NumberColumn("수량", disabled=True), # 수량은 여기서 바꾸면 헷갈리니 유지 (필요하면 풀어드림)
+                "memo": st.column_config.TextColumn("메모(수정)"),
                 "id": None, "ordered": None
             },
             column_order=["sender_name", "sender_phone", "sender_addr", "name", "phone", "address", "qty", "memo"],
@@ -365,32 +437,28 @@ with tab4:
                 </div>
             """, unsafe_allow_html=True)
             
-            # [핵심 수정] 미리보기에서도 메모 수정 가능하도록 data_editor 사용
-            # 그룹별로 키(key)를 다르게 줘야 충돌 안 남
+            # [모든 데이터 수정 가능] - 미리보기 표
+            # 여기도 disabled 제거
             group_key = f"preview_group_{s_name}_{s_phone}"
-            
             edited_group = st.data_editor(
                 group[['name', 'phone', 'address', 'qty', 'memo']],
                 column_config={
-                    "name": st.column_config.TextColumn("받는분", disabled=True),
-                    "phone": st.column_config.TextColumn("연락처", disabled=True),
-                    "address": st.column_config.TextColumn("주소", disabled=True),
-                    "qty": st.column_config.NumberColumn("수량", disabled=True),
-                    "memo": st.column_config.TextColumn("메모(수정)") # 수정 가능
+                    "name": st.column_config.TextColumn("받는분"),
+                    "phone": st.column_config.TextColumn("연락처"),
+                    "address": st.column_config.TextColumn("주소"),
+                    "qty": st.column_config.NumberColumn("수량", disabled=True), 
+                    "memo": st.column_config.TextColumn("메모")
                 },
                 use_container_width=True,
                 hide_index=True,
                 key=group_key
             )
             
-            # 미리보기에서 수정하면 원본에 반영
             if not edited_group.equals(group[['name', 'phone', 'address', 'qty', 'memo']]):
-                # 인덱스가 살아있으므로 update로 원본 갱신 가능
                 st.session_state.df.update(edited_group)
                 save_all()
                 st.rerun()
 
-        # 엑셀 다운로드
         def to_excel(df):
             output = io.BytesIO()
             with pd.ExcelWriter(output, engine='openpyxl') as writer:
