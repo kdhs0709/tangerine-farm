@@ -7,7 +7,7 @@ import shutil
 from datetime import datetime
 
 # =============================================================================
-# 📱 [설정] 페이지 및 디자인 (모바일 초밀착 모드)
+# 📱 [설정] 페이지 및 디자인
 # =============================================================================
 st.set_page_config(
     page_title="감귤 농장 Manager",
@@ -18,7 +18,7 @@ st.set_page_config(
 
 st.markdown("""
     <style>
-    /* 1. 버튼, 입력창은 터치하기 쉽게 큼직하게 유지 */
+    /* 1. 버튼, 입력창은 터치하기 쉽게 크게 유지 */
     .stButton>button, .stTextInput input, .stNumberInput input {
         min-height: 45px !important;
         font-size: 16px !important;
@@ -32,12 +32,12 @@ st.markdown("""
         box-shadow: 0 2px 4px rgba(0,0,0,0.2);
     }
 
-    /* 2. 표(Grid)는 정보를 많이 보여주기 위해 슬림하게 조정 */
+    /* 2. 표(Grid)는 정보를 많이 보여주기 위해 얇게 조정 */
     div[data-testid="stDataEditor"] table, div[data-testid="stDataFrame"] table {
         font-size: 13px !important; /* 표 글씨는 약간 작게 */
     }
     
-    /* 3. 표의 칸 여백을 줄여서(Autosize 효과) 모바일 폭에 맞춤 */
+    /* 3. 표의 칸 여백을 줄여서 모바일 폭에 맞춤 */
     div[data-testid="stDataEditor"] th, div[data-testid="stDataEditor"] td {
         padding: 8px 4px !important; /* 좌우 여백 최소화 */
     }
@@ -698,3 +698,4 @@ with tab4:
         )
     else:
         st.info("주문 없음")
+
